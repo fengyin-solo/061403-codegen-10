@@ -76,6 +76,17 @@
 
       <div class="bottom-section">
         <LogPanel :logs="actionLog" />
+        <QuestBoard
+          :quests="dailyQuests"
+          :progress="questProgress"
+          :completed-count="completedQuestCount"
+          :current-title="currentTitle"
+          :unlocked-titles="unlockedTitles"
+          :next-title="nextTitle"
+          :title-progress="titleProgress"
+          :special-logs="unlockedSpecialLogs"
+          @claim="handleClaim"
+        />
       </div>
     </main>
 
@@ -104,6 +115,7 @@ import ActionPanel from './components/ActionPanel.vue'
 import LogPanel from './components/LogPanel.vue'
 import SaveManager from './components/SaveManager.vue'
 import GameOver from './components/GameOver.vue'
+import QuestBoard from './components/QuestBoard.vue'
 
 const {
   temperature,
@@ -131,7 +143,16 @@ const {
   loadGame,
   getSaveSlots,
   deleteSave,
-  restartGame
+  restartGame,
+  dailyQuests,
+  questProgress,
+  completedQuestCount,
+  currentTitle,
+  unlockedTitles,
+  unlockedSpecialLogs,
+  nextTitle,
+  titleProgress,
+  claimQuestReward
 } = useGame()
 
 const {
@@ -220,6 +241,15 @@ function handleDelete(slotName) {
 
 function handleRestart() {
   restartGame()
+}
+
+function handleClaim(questId) {
+  const result = claimQuestReward(questId)
+  if (result) {
+    playSuccess()
+  } else {
+    playWarning()
+  }
 }
 
 function showSaveManager() {
@@ -405,11 +435,16 @@ watch(isDanger, (newVal) => {
 
 .bottom-section {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr 380px;
+  gap: 20px;
 }
 
 @media (max-width: 1200px) {
   .middle-section {
+    grid-template-columns: 1fr;
+  }
+  
+  .bottom-section {
     grid-template-columns: 1fr;
   }
   
