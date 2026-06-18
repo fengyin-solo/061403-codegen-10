@@ -12,6 +12,11 @@ const QUEST_TEMPLATES = [
       { type: 'wood', amount: 5 },
       { type: 'food', amount: 3 },
       { type: 'hide', amount: 2 }
+    ],
+    specialLogs: [
+      '发现了一棵倒下的古树，木质坚硬且干燥，是极好的燃料。',
+      '在树林深处发现了一处废弃的伐木营地，散落着不少木材。',
+      '学会了识别最适合生火的硬木种类，砍柴效率大大提升。'
     ]
   },
   {
@@ -25,6 +30,11 @@ const QUEST_TEMPLATES = [
       { type: 'food', amount: 4 },
       { type: 'tools', amount: 1 },
       { type: 'hide', amount: 3 }
+    ],
+    specialLogs: [
+      '捕获了一只罕见的白狐，它的皮毛格外厚实温暖。',
+      '发现了一处古老的猎户营地遗迹，残留的工具让你受益匪浅。',
+      '追踪猎物时发现了一条隐秘的山谷，里面有丰富的野生动物。'
     ]
   },
   {
@@ -38,6 +48,11 @@ const QUEST_TEMPLATES = [
       { type: 'wood', amount: 6 },
       { type: 'hide', amount: 2 },
       { type: 'food', amount: 4 }
+    ],
+    specialLogs: [
+      '在雪地中发现了一本破旧的日记，记录着前人的生存智慧。',
+      '掌握了更精湛的工具制作技艺，做出的工具更加耐用。',
+      '用兽皮和木头制作了一套简易的攀爬装备，可以探索更多区域。'
     ]
   },
   {
@@ -51,6 +66,11 @@ const QUEST_TEMPLATES = [
       { type: 'wood', amount: 4 },
       { type: 'heat', amount: 30 },
       { type: 'food', amount: 3 }
+    ],
+    specialLogs: [
+      '发现了一种特殊的火石，生火变得更加容易了。',
+      '火焰的光芒吸引了一只迷途的小鸟，它在营地旁歇了一晚。',
+      '在篝火旁沉思时，突然想通了困扰许久的生存难题。'
     ]
   },
   {
@@ -64,6 +84,11 @@ const QUEST_TEMPLATES = [
       { type: 'temperature', amount: 20 },
       { type: 'food', amount: 2 },
       { type: 'hide', amount: 1 }
+    ],
+    specialLogs: [
+      '发现了生长在岩石缝中的耐寒浆果，为食物增添了新来源。',
+      '偶然间发现了烟熏保存食物的方法，可以延长食物保质期。',
+      '一顿热腾腾的饭菜让你精神焕发，感觉全身都充满了力量。'
     ]
   },
   {
@@ -77,6 +102,12 @@ const QUEST_TEMPLATES = [
       { type: 'wood', amount: 3 },
       { type: 'heat', amount: 25 },
       { type: 'tools', amount: 1 }
+    ],
+    specialLogs: [
+      '夜晚的极光如此绚烂，让你暂时忘却了严寒的恐惧。',
+      '找到了一个天然的避风洞穴，可以抵御暴风雪的侵袭。',
+      '在星空下冥想，感受到了大自然的神秘力量。',
+      '搭建了一个更稳固的庇护所结构，让营地变得更加安全。'
     ]
   }
 ]
@@ -87,17 +118,6 @@ const TITLE_TIERS = [
   { id: 'veteran', name: '资深生存者', icon: '🎖️', requiredCompletions: 15 },
   { id: 'master', name: '荒野大师', icon: '👑', requiredCompletions: 25 },
   { id: 'legend', name: '极地传说', icon: '❄️', requiredCompletions: 40 }
-]
-
-const SPECIAL_LOGS = [
-  '发现了一处古老的猎户营地遗迹，残留的工具让你受益匪浅。',
-  '在雪地中发现了一本破旧的日记，记录着前人的生存智慧。',
-  '夜晚的极光如此绚烂，让你暂时忘却了严寒的恐惧。',
-  '捕获了一只罕见的白狐，它的皮毛格外厚实温暖。',
-  '找到了一个天然的避风洞穴，可以抵御暴风雪的侵袭。',
-  '发现了生长在岩石缝中的耐寒浆果，为食物增添了新来源。',
-  '在星空下冥想，感受到了大自然的神秘力量。',
-  '搭建了一个更稳固的庇护所结构，让营地变得更加安全。'
 ]
 
 export function useGame() {
@@ -242,17 +262,31 @@ export function useGame() {
 
     addLog(`🎉 完成任务「${quest.name}」！获得：${rewardText.join('，')}`, 'success')
 
-    if (Math.random() < 0.4) {
-      unlockSpecialLog()
-    }
+    unlockSpecialLogForQuest(quest)
 
     checkTitleUnlock()
 
     return true
   }
 
+  function unlockSpecialLogForQuest(quest) {
+    const template = QUEST_TEMPLATES.find(t => t.id === quest.id)
+    if (!template || !template.specialLogs) return
+
+    const availableLogs = template.specialLogs.filter(
+      log => !unlockedSpecialLogs.value.includes(log)
+    )
+
+    if (availableLogs.length === 0) return
+
+    const selected = availableLogs[Math.floor(Math.random() * availableLogs.length)]
+    unlockedSpecialLogs.value.push(selected)
+    addLog(`📖 解锁特殊日志！${selected}`, 'success')
+  }
+
   function unlockSpecialLog() {
-    const available = SPECIAL_LOGS.filter(log => !unlockedSpecialLogs.value.includes(log))
+    const allLogs = QUEST_TEMPLATES.flatMap(t => t.specialLogs || [])
+    const available = allLogs.filter(log => !unlockedSpecialLogs.value.includes(log))
     if (available.length === 0) return
 
     const selected = available[Math.floor(Math.random() * available.length)]

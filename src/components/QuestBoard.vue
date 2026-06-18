@@ -2,7 +2,7 @@
   <div class="quest-board">
     <h3 class="panel-title">📜 营地任务板</h3>
 
-    <div v-if="currentTitleInfo" class="current-title">
+    <div v-if="currentTitleInfo" class="current-title" :class="{ 'title-unlock-anim': justUnlockedTitle }">
       <span class="title-icon">{{ currentTitleInfo.icon }}</span>
       <span class="title-name">{{ currentTitleInfo.name }}</span>
     </div>
@@ -15,6 +15,7 @@
       <div class="title-progress-bar-container">
         <div class="title-progress-bar" :style="{ width: titleProgress.percentage + '%' }"></div>
       </div>
+      <div class="title-hint">再完成 {{ titleProgress.required - titleProgress.current }} 个任务解锁</div>
     </div>
     <div v-else class="title-progress-section maxed">
       <span class="maxed-text">🏆 已达到最高称号！</span>
@@ -22,6 +23,7 @@
 
     <div class="quest-stats">
       <span>已完成任务：{{ completedCount }} 个</span>
+      <span class="log-count">📖 {{ specialLogs.length }} 条日志</span>
     </div>
 
     <div class="quest-list">
@@ -37,12 +39,16 @@
             <span class="quest-name">{{ quest.name }}</span>
             <span class="quest-desc">{{ quest.description }}</span>
           </div>
+          <span v-if="canClaim(quest)" class="quest-badge">可领取</span>
+          <span v-else-if="isClaimed(quest)" class="quest-badge done">已完成</span>
         </div>
 
         <div class="quest-progress-section">
           <div class="progress-label">
             <span>进度</span>
-            <span>{{ getProgress(quest.id) }}/{{ quest.target }}</span>
+            <span :class="{ 'progress-complete': getProgress(quest.id) >= quest.target }">
+              {{ getProgress(quest.id) }}/{{ quest.target }}
+            </span>
           </div>
           <div class="progress-bar-container">
             <div
@@ -58,25 +64,28 @@
           <span v-for="(reward, idx) in quest.rewards" :key="idx" class="reward-tag">
             {{ getRewardIcon(reward.type) }} {{ reward.amount }}
           </span>
+          <span class="reward-tag special">
+            📖 特殊日志
+          </span>
         </div>
 
         <button
           v-if="!isClaimed(quest)"
           class="claim-btn"
-          :class="{ disabled: !canClaim(quest) }"
+          :class="{ disabled: !canClaim(quest), glow: canClaim(quest) }"
           :disabled="!canClaim(quest)"
           @click="handleClaim(quest.id)"
         >
           {{ canClaim(quest) ? '🎁 领取奖励' : '进行中...' }}
         </button>
         <div v-else class="claimed-badge">
-          ✅ 已完成
+          ✅ 任务已完成
         </div>
       </div>
     </div>
 
     <div v-if="specialLogs.length > 0" class="special-logs-section">
-      <h4 class="section-subtitle">📖 特殊日志</h4>
+      <h4 class="section-subtitle">📖 特殊日志 ({{ specialLogs.length }})</h4>
       <div class="special-logs-list">
         <div v-for="(log, idx) in specialLogs" :key="idx" class="special-log-item">
           <span class="log-bullet">✨</span>
@@ -84,11 +93,14 @@
         </div>
       </div>
     </div>
+    <div v-else class="special-logs-section empty">
+      <p class="empty-hint">完成任务解锁特殊日志 📖</p>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   quests: {
@@ -134,6 +146,19 @@ const TITLES = [
   { id: 'master', name: '荒野大师', icon: '👑', requiredCompletions: 25 },
   { id: 'legend', name: '极地传说', icon: '❄️', requiredCompletions: 40 }
 ]
+
+const justUnlockedTitle = ref(false)
+const prevTitle = ref(props.currentTitle)
+
+watch(() => props.currentTitle, (newVal, oldVal) => {
+  if (newVal && newVal !== oldVal) {
+    justUnlockedTitle.value = true
+    setTimeout(() => {
+      justUnlockedTitle.value = false
+    }, 2000)
+  }
+  prevTitle.value = newVal
+})
 
 const currentTitleInfo = computed(() => {
   if (!props.currentTitle) return null
@@ -222,6 +247,30 @@ function handleClaim(questId) {
   background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 140, 0, 0.2));
   border: 2px solid rgba(255, 215, 0, 0.4);
   border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.current-title.title-unlock-anim {
+  animation: titleUnlock 2s ease;
+}
+
+@keyframes titleUnlock {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(255, 215, 0, 0);
+  }
+  25% {
+    transform: scale(1.05);
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(255, 215, 0, 0);
+  }
 }
 
 .title-icon {
@@ -239,6 +288,13 @@ function handleClaim(questId) {
   padding: 10px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 10px;
+}
+
+.title-hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  margin-top: 6px;
 }
 
 .title-progress-section.maxed {
@@ -282,12 +338,19 @@ function handleClaim(questId) {
 }
 
 .quest-stats {
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
   color: rgba(255, 255, 255, 0.7);
   font-size: 13px;
   padding: 8px;
   background: rgba(0, 0, 0, 0.15);
   border-radius: 8px;
+}
+
+.log-count {
+  color: rgba(155, 89, 182, 0.9);
+  font-weight: bold;
 }
 
 .quest-list {
@@ -343,6 +406,30 @@ function handleClaim(questId) {
   margin-bottom: 12px;
 }
 
+.quest-badge {
+  padding: 3px 8px;
+  background: linear-gradient(135deg, #2ecc71, #27ae60);
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  border-radius: 12px;
+  animation: badgePulse 1.5s ease-in-out infinite;
+}
+
+.quest-badge.done {
+  background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+  animation: none;
+}
+
+@keyframes badgePulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
 .quest-icon {
   font-size: 28px;
   width: 36px;
@@ -378,6 +465,11 @@ function handleClaim(questId) {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.7);
   margin-bottom: 5px;
+}
+
+.progress-complete {
+  color: #2ecc71;
+  font-weight: bold;
 }
 
 .progress-bar-container {
@@ -421,6 +513,12 @@ function handleClaim(questId) {
   font-size: 11px;
 }
 
+.reward-tag.special {
+  background: linear-gradient(135deg, rgba(155, 89, 182, 0.4), rgba(142, 68, 173, 0.4));
+  border: 1px solid rgba(155, 89, 182, 0.6);
+  color: #e8daef;
+}
+
 .claim-btn {
   width: 100%;
   padding: 10px 16px;
@@ -433,6 +531,19 @@ function handleClaim(questId) {
   background: linear-gradient(135deg, #2ecc71, #27ae60);
   color: white;
   box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3);
+}
+
+.claim-btn.glow {
+  animation: btnGlow 2s ease-in-out infinite;
+}
+
+@keyframes btnGlow {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(46, 204, 113, 0.6);
+  }
 }
 
 .claim-btn:hover:not(.disabled) {
@@ -465,6 +576,20 @@ function handleClaim(questId) {
   margin-top: 5px;
   padding-top: 15px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.special-logs-section.empty {
+  text-align: center;
+  padding: 15px;
+  border: 2px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.empty-hint {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+  margin: 0;
+  font-style: italic;
 }
 
 .section-subtitle {
